@@ -1,5 +1,6 @@
 # smack
-Lisp dialect with minimal parenthesis and curley braces denoting the begin and end of an expression block.
+- Lisp dialect with minimal parenthesis. 
+- Curley braces denoting the begin and end of an expression block.
 
 # Potential Syntax
 
