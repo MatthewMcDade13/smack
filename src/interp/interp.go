@@ -156,18 +156,30 @@ func Print(v Value) string {
 }
 
 func Rep(source string, env *Env) (string, error) {
-	v, err := Read(source)
-	if err != nil {
-		return "", err
+	lines := strings.Split(source, "\n")
+	// fmt.Printf("%#v", lines)
+
+	var last_print string
+
+	for _, l := range lines {
+		if len(l) == 0 {
+			continue
+		}
+
+		v, err := Read(l)
+		if err != nil {
+			return "", err
+		}
+
+		if evaled, err := Eval(v, env); err == nil {
+			s := Print(evaled)
+			last_print = s
+		} else {
+			return "", err
+		}
 	}
 
-	if evaled, err := Eval(v, env); err == nil {
-		s := Print(evaled)
-		return s, nil
-	} else {
-		return "", err
-	}
-
+	return last_print, nil
 }
 
 func Repl() error {

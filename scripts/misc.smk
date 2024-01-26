@@ -1,4 +1,7 @@
+(println "Ayyye this really something!!!")
+
 (def add (fn (a b) (+ a b)))
+
 (def sub (fn (a b) (- a b)))
 (def not (fn (a) if a false true))
 
@@ -7,11 +10,8 @@
 (def a 100)
 (def b 200)
 
-(println (do (
-    (def res (sub a b))
-    (>= res 50)
-)))
+(println (eval (list + a b)))
 
-(println "Ayyye this really something!!!")
+
 
 

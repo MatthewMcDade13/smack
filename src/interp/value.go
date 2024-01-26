@@ -15,6 +15,7 @@ const (
 	VAL_HASHMAP
 	VAL_SYMBOL
 	VAL_ATOM
+	VAL_CHANNEL
 	VAL_ERROR
 	VAL_FN
 )
@@ -111,7 +112,6 @@ func NewBool(val bool) Value {
 func NewList(vals []Value) Value {
 	return NewValue(VAL_LIST, vals)
 }
-
 func NewArray(val []Value) Value {
 	return NewValue(VAL_ARRAY, val)
 }
@@ -138,6 +138,11 @@ func NewAtom(name string) Value {
 		smack_atoms[atom_name] = atom
 		return NewValue(VAL_ATOM, atom)
 	}
+}
+
+func NewChan() Value {
+	c := make(chan Value)
+	return NewValue(VAL_CHANNEL, c)
 }
 
 func new_core_fn(fn SmackFnPtr) Value {
@@ -199,6 +204,10 @@ func (v Value) AsError() error {
 	return v.val.(error)
 }
 
+func (v Value) AsChan() chan Value {
+	return v.val.(chan Value)
+}
+
 func (v Value) IsError() bool {
 	return v.Type() == VAL_ERROR && v.val != nil
 }
@@ -233,6 +242,10 @@ func (v Value) IsHashMap() bool {
 
 func (v Value) IsFn() bool {
 	return v.Type() == VAL_FN
+}
+
+func (v Value) IsChan() bool {
+	return v.Type() == VAL_CHANNEL
 }
 
 func (v Value) IsNone() bool {
@@ -274,6 +287,9 @@ func (v Value) IsTruthy() bool {
 		return !f.IsNil()
 	case VAL_ERROR:
 		return v.val != nil
+	case VAL_CHANNEL:
+		c := v.AsChan()
+		return c != nil
 	case VAL_NONE:
 		return false
 	default:
@@ -343,6 +359,14 @@ func (v Value) TryFn() (*SmackFn, error) {
 	}
 }
 
+func (v Value) TryChan() (chan Value, error) {
+	if v.Type() == VAL_CHANNEL {
+		return v.AsChan(), nil
+	} else {
+		return nil, fmt.Errorf("value: %s::%s is not a function", v.val, v.TypeString())
+	}
+}
+
 func (v Value) Type() uint32 {
 	return v.ty
 }
@@ -389,6 +413,8 @@ func (v Value) String() string {
 		return fmt.Sprintf("%s", v.AsError())
 	case VAL_NONE:
 		return "NONE"
+	case VAL_CHANNEL:
+		return fmt.Sprintf("%#v", v.AsChan())
 	default:
 		return "Unknown/Incorrect Internal Type"
 	}
@@ -415,7 +441,9 @@ func TypeString(ty uint32) string {
 	case VAL_ERROR:
 		return "Error"
 	case VAL_NONE:
-		fallthrough
+		return "None"
+	case VAL_CHANNEL:
+		return "Channel"
 	default:
 		return "Unknown/Incorrect Internal Type"
 	}

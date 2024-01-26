@@ -28,6 +28,14 @@ func NewCoreEnv() *Env {
 	env.Set(">", new_core_fn(eval_gt))
 	env.Set(">=", new_core_fn(eval_gte))
 
+	env.Set("cons", new_core_fn(eval_cons))
+	env.Set("concat", new_core_fn(eval_concat))
+
+	env.Set("go", new_core_fn(eval_goroutine))
+
+	env.Set("send!", new_core_fn(eval_send))
+	env.Set("recv!", new_core_fn(eval_recv))
+
 	env.Set("err?", new_core_fn(eval_iserror))
 	env.Set("read-str", new_core_fn(eval_read_str))
 	env.Set("slurp", new_core_fn(eval_slurp))
@@ -44,6 +52,65 @@ func NewCoreEnv() *Env {
 		env.Set("eval", new_core_fn(eval))
 	}
 	return env
+}
+
+func eval_cons(vs ...Value) Value {
+	if len(vs) < 2 {
+		return NewError(fmt.Errorf("Invalid number of parameters to cons. Expected: 2, got %d", len(vs)))
+	}
+	val := vs[0]
+	if list, err := vs[1].TryList(); err == nil {
+		new_list := make([]Value, 0, len(list)+1)
+		new_list = append(new_list, val)
+		new_list = append(new_list, list...)
+		return NewList(new_list)
+	} else {
+		return NewError(err)
+	}
+}
+
+func eval_concat(vs ...Value) Value {
+	new_list := make([]Value, 0, len(vs))
+	for _, v := range vs {
+		if l, err := v.TryList(); err == nil {
+			new_list = append(new_list, l...)
+		} else {
+			return NewError(err)
+		}
+	}
+	return NewList(new_list)
+}
+
+func eval_goroutine(vs ...Value) Value {
+	if fn, err := vs[0].TryFn(); err == nil {
+		if len(vs) > 1 {
+			go fn.Apply(vs[1:]...)
+		} else {
+			go fn.Apply()
+		}
+		return NewNilList()
+	} else {
+		return NewError(err)
+	}
+}
+
+func eval_recv(vs ...Value) Value {
+	if ch, err := vs[0].TryChan(); err == nil {
+		val := <-ch
+		return val
+	} else {
+		return NewError(err)
+	}
+}
+
+func eval_send(vs ...Value) Value {
+	if ch, err := vs[0].TryChan(); err == nil {
+		val := vs[1]
+		ch <- val
+		return val
+	} else {
+		return NewError(err)
+	}
 }
 
 func eval_slurp(vs ...Value) Value {
