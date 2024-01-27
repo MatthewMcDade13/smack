@@ -37,7 +37,7 @@ func Eval(ast Value, env *Env) (Value, error) {
 				}
 
 			case "let":
-				let_env := NewEnv(env)
+				let_env := NewEnv(env, nil, nil)
 				bindings := list[1].AsList()
 				for i := 1; i < len(bindings); i = i + 2 {
 					name := bindings[i-1].AsSymbol().Name()
@@ -50,6 +50,46 @@ func Eval(ast Value, env *Env) (Value, error) {
 
 				}
 				return Eval(list[2], let_env)
+			case "do":
+				if do_list, err := eval_ast(list[1], env); err == nil {
+					if do_list, err := do_list.TryList(); err == nil {
+						if len(do_list) == 0 {
+							return NoValue(), fmt.Errorf("Unable to eval empty list for 'do' form")
+						}
+						last := do_list[len(do_list)-1]
+
+						return last, nil
+					} else {
+						return NoValue(), err
+					}
+
+				} else {
+					return NoValue(), err
+				}
+			case "if":
+				if cond, err := Eval(list[1], env); err == nil {
+					if cond.IsTruthy() {
+						return Eval(list[2], env)
+					} else if len(list) > 3 /*if we have an else body */ {
+						return Eval(list[3], env)
+					} else {
+						return NewNilList(), nil
+					}
+				} else {
+					return NoValue(), err
+				}
+			case "fn":
+				fn := func(vs ...Value) Value {
+					binds := list[1].AsList()
+					fn_env := NewEnv(env, binds, vs)
+					if body, err := Eval(list[2], fn_env); err == nil {
+						return body
+					} else {
+						fmt.Printf("WARN => Failed to eval fn body: %s\n", err)
+						return NewNilList()
+					}
+				}
+				return NewFn(fn), nil
 			}
 		}
 
@@ -94,7 +134,7 @@ func Rep(source string, env *Env) (string, error) {
 }
 
 func Repl() error {
-	sym_table := NewEnv(nil)
+	sym_table := NewEnv(nil, nil, nil)
 	sym_table.Set("+", NewFn(eval_add))
 	sym_table.Set("-", NewFn(eval_sub))
 	sym_table.Set("*", NewFn(eval_mul))

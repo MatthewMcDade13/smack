@@ -77,6 +77,11 @@ func NewFn(fn EvalFunc) Value {
 	return NewValue(VAL_FN, fn)
 }
 
+func NewNilList() Value {
+	empty := make([]Value, 0)
+	return NewList(empty)
+}
+
 func (v Value) AsNumber() float64 {
 	return v.val.(float64)
 }

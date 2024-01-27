@@ -7,8 +7,16 @@ type Env struct {
 	data  SmackMap
 }
 
-func NewEnv(outer *Env) *Env {
+func NewEnv(outer *Env, binds []Value, exprs []Value) *Env {
 	data := make(SmackMap)
+
+	if binds != nil && exprs != nil {
+		for i, bind := range binds {
+			bind := bind.AsSymbol().Name()
+			data[bind] = exprs[i]
+		}
+	}
+
 	return &Env{
 		outer, data,
 	}

@@ -67,6 +67,8 @@ func (p *parser) read_atom() (Value, error) {
 				return NewBool(true), nil
 			case "false":
 				return NewBool(false), nil
+			case "nil":
+				return NewNilList(), nil
 			default:
 				return NewSymbol(Symbol(tok)), nil
 			}
