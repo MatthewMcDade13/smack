@@ -7,8 +7,12 @@ import (
 	"strings"
 )
 
-type EvalFunc func(...Value) Value
-type EnvData map[string]EvalFunc
+type SmackFunc func(...Value) Value
+type EnvData map[string]SmackFunc
+
+func (f SmackFunc) String() string {
+	return fmt.Sprintf("%#v", f)
+}
 
 func Read(source string) (Value, error) {
 	p := new_parser(source)
@@ -134,20 +138,25 @@ func Rep(source string, env *Env) (string, error) {
 }
 
 func Repl() error {
-	sym_table := NewEnv(nil, nil, nil)
-	sym_table.Set("+", NewFn(eval_add))
-	sym_table.Set("-", NewFn(eval_sub))
-	sym_table.Set("*", NewFn(eval_mul))
-	sym_table.Set("/", NewFn(eval_div))
+	core_env := NewCoreEnv()
+
+	fmt.Println("Smack Interpreter REPL => v0.0.1")
+	fmt.Println("type 'exit' or 'quit' to exit REPL")
 
 	for {
 		fmt.Print("smack> ")
 
 		if text, err := read_input(); err == nil {
-			if len(strings.TrimSpace(text)) == 0 {
+			text := strings.TrimSpace(text)
+			if len(text) == 0 {
 				continue
 			}
-			if src, err := Rep(text, sym_table); err == nil {
+
+			if text == "exit" || text == "quit" {
+				fmt.Println("Exiting Smack Repl...")
+				os.Exit(0)
+			}
+			if src, err := Rep(text, core_env); err == nil {
 				fmt.Println(src)
 			} else {
 				fmt.Println(err)
@@ -157,66 +166,6 @@ func Repl() error {
 		}
 	}
 
-}
-
-func eval_ast(ast Value, env *Env) (Value, error) {
-	switch ast.Type() {
-	case VAL_SYMBOL:
-		sym := ast.AsSymbol()
-		if f, err := env.Get(sym.Name()); err == nil {
-			return f, nil
-		} else {
-			return NoValue(), err
-		}
-	case VAL_LIST:
-		root := ast.AsList()
-		result := make([]Value, 0, len(root))
-
-		for _, v := range root {
-			if evaled, err := Eval(v, env); err == nil {
-				result = append(result, evaled)
-			} else {
-				return NoValue(), err
-			}
-
-		}
-		return NewList(result), nil
-	default:
-		return ast, nil
-	}
-
-}
-
-func eval_add(vs ...Value) Value {
-	n := 0.0
-	for _, v := range vs {
-		n += v.AsNumber()
-	}
-	return NewNumber(n)
-}
-
-func eval_sub(vs ...Value) Value {
-	n := 0.0
-	for _, v := range vs {
-		n -= v.AsNumber()
-	}
-	return NewNumber(n)
-}
-
-func eval_div(vs ...Value) Value {
-	n := 1.0
-	for _, v := range vs {
-		n = v.AsNumber() / n
-	}
-	return NewNumber(n)
-}
-
-func eval_mul(vs ...Value) Value {
-	n := 1.0
-	for _, v := range vs {
-		n *= v.AsNumber()
-	}
-	return NewNumber(n)
 }
 
 func read_input() (string, error) {

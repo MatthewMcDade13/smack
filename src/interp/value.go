@@ -73,7 +73,7 @@ func NewSymbol(val Symbol) Value {
 	return NewValue(VAL_SYMBOL, val)
 }
 
-func NewFn(fn EvalFunc) Value {
+func NewFn(fn SmackFunc) Value {
 	return NewValue(VAL_FN, fn)
 }
 
@@ -106,8 +106,8 @@ func (v Value) AsSymbol() Symbol {
 	return v.val.(Symbol)
 }
 
-func (v Value) AsFn() EvalFunc {
-	return v.val.(EvalFunc)
+func (v Value) AsFn() SmackFunc {
+	return v.val.(SmackFunc)
 }
 
 func (v Value) IsNil() bool {
@@ -236,7 +236,7 @@ func (v Value) TrySymbol() (Symbol, error) {
 	}
 }
 
-func (v Value) TryFn() (EvalFunc, error) {
+func (v Value) TryFn() (SmackFunc, error) {
 	if v.Type() == VAL_FN {
 		return v.AsFn(), nil
 	} else {
@@ -283,7 +283,7 @@ func (v Value) String() string {
 	case VAL_SYMBOL:
 		return fmt.Sprintf(":%s", v.AsString())
 	case VAL_FN:
-		return fmt.Sprintf("%#v", v.AsFn())
+		return v.AsFn().String()
 	case VAL_NONE:
 		return "NONE"
 	default:
