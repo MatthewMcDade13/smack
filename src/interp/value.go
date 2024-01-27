@@ -6,17 +6,27 @@ import (
 )
 
 const (
-	VAL_NUMBER = iota
+	VAL_NONE = iota
+	VAL_NUMBER
 	VAL_STRING
 	VAL_BOOLEAN
 	VAL_LIST
 	VAL_ARRAY
 	VAL_HASHMAP
 	VAL_SYMBOL
-	VAL_NONE
+	VAL_FN
 )
 
 type SmackMap map[string]Value
+type Symbol string
+
+func (s Symbol) Name() string {
+	return string(s)
+}
+
+func (s Symbol) String() string {
+	return ":" + string(s)
+}
 
 type Value struct {
 	ty  uint32
@@ -59,8 +69,12 @@ func NewHashMap(val SmackMap) Value {
 	return NewValue(VAL_HASHMAP, val)
 }
 
-func NewSymbol(val string) Value {
+func NewSymbol(val Symbol) Value {
 	return NewValue(VAL_SYMBOL, val)
+}
+
+func NewFn(fn EvalFunc) Value {
+	return NewValue(VAL_FN, fn)
 }
 
 func (v Value) AsNumber() float64 {
@@ -81,6 +95,14 @@ func (v Value) AsList() []Value {
 
 func (v Value) AsHashMap() SmackMap {
 	return v.val.(SmackMap)
+}
+
+func (v Value) AsSymbol() Symbol {
+	return v.val.(Symbol)
+}
+
+func (v Value) AsFn() EvalFunc {
+	return v.val.(EvalFunc)
 }
 
 func (v Value) IsNil() bool {
@@ -111,8 +133,16 @@ func (v Value) IsHashMap() bool {
 	return v.Type() == VAL_HASHMAP
 }
 
+func (v Value) IsFn() bool {
+	return v.Type() == VAL_FN
+}
+
 func (v Value) IsNone() bool {
 	return v.Type() == VAL_NONE
+}
+
+func (v Value) IsSome() bool {
+	return !v.IsNone()
 }
 
 func (v Value) IsSymbol() bool {
@@ -137,6 +167,9 @@ func (v Value) IsTruthy() bool {
 	case VAL_HASHMAP:
 		m := v.AsHashMap()
 		return m != nil && len(m) > 0
+	case VAL_FN:
+		f := v.AsFn()
+		return f != nil
 	case VAL_NONE:
 		return false
 	default:
@@ -190,11 +223,19 @@ func (v Value) TryHashMap() (SmackMap, error) {
 	}
 }
 
-func (v Value) TrySymbol() (string, error) {
+func (v Value) TrySymbol() (Symbol, error) {
 	if v.Type() == VAL_SYMBOL {
-		return v.AsString(), nil
+		return v.AsSymbol(), nil
 	} else {
 		return "", fmt.Errorf("value: %s::%s is not a symbol", v.val, v.TypeString())
+	}
+}
+
+func (v Value) TryFn() (EvalFunc, error) {
+	if v.Type() == VAL_FN {
+		return v.AsFn(), nil
+	} else {
+		return nil, fmt.Errorf("value: %s::%s is not a function", v.val, v.TypeString())
 	}
 }
 
@@ -236,6 +277,8 @@ func (v Value) String() string {
 		return fmt.Sprintf("%#v", v.AsHashMap())
 	case VAL_SYMBOL:
 		return fmt.Sprintf(":%s", v.AsString())
+	case VAL_FN:
+		return fmt.Sprintf("%#v", v.AsFn())
 	case VAL_NONE:
 		return "NONE"
 	default:
@@ -259,6 +302,8 @@ func TypeString(ty uint32) string {
 		return "HashMap"
 	case VAL_SYMBOL:
 		return "Symbol"
+	case VAL_FN:
+		return "Function"
 	case VAL_NONE:
 		fallthrough
 	default:

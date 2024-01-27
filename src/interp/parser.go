@@ -19,7 +19,7 @@ type parser struct {
 	current uint32
 }
 
-func newParser(source string) parser {
+func new_parser(source string) parser {
 	toks := tokenize(source)
 	current := uint32(0)
 	return parser{
@@ -32,7 +32,7 @@ func (p *parser) peek() string {
 	return p.toks[p.current]
 }
 
-func (p *parser) peekNext() string {
+func (p *parser) peek_next() string {
 	return p.toks[p.current+1]
 }
 
@@ -40,24 +40,24 @@ func (p *parser) skip(n int) {
 	p.current += uint32(n)
 }
 
-func (p *parser) readForm() (Value, error) {
+func (p *parser) read_form() (Value, error) {
 	tok := p.peek()
 
 	if tok[0] == '(' {
 		p.skip(1)
-		return p.readList()
+		return p.read_list()
 	} else {
-		return p.readAtom()
+		return p.read_atom()
 	}
 }
 
-func (p *parser) readAtom() (Value, error) {
+func (p *parser) read_atom() (Value, error) {
 	tok := p.peek()
 	switch tok[0] {
 	case '"':
 		return NewString(tok), nil
 	case ':':
-		return NewSymbol(tok), nil
+		return NewSymbol(Symbol(tok)), nil
 	default:
 		n, err := strconv.ParseFloat(tok, 32)
 		if err != nil {
@@ -68,14 +68,14 @@ func (p *parser) readAtom() (Value, error) {
 			case "false":
 				return NewBool(false), nil
 			default:
-				return NewSymbol(tok), nil
+				return NewSymbol(Symbol(tok)), nil
 			}
 		}
 		return NewNumber(n), nil
 	}
 }
 
-func (p *parser) readList() (Value, error) {
+func (p *parser) read_list() (Value, error) {
 	list := make([]Value, 0)
 
 	for {
@@ -94,7 +94,7 @@ func (p *parser) readList() (Value, error) {
 			break
 		}
 
-		if v, err := p.readForm(); err == nil {
+		if v, err := p.read_form(); err == nil {
 			list = append(list, v)
 		} else {
 			return NoValue(), err
@@ -107,7 +107,7 @@ func (p *parser) readList() (Value, error) {
 }
 
 func tokenize(source string) []string {
-	re := regexp.MustCompile(`[\s,]*(~@|[\[\]{}()'~^@]|"(?:\\.|[^\\"])*"?|;.*|[^\s\[\]{}('",;)]*)`)
+	re := regexp.MustCompile(`[\s,]*(~@|[\[\]{}()'` + "`" + `~^@]|"(?:\\.|[^\\"])*"?|;.*|[^\s\[\]{}('"` + "`" + `,;)]*)`)
 	matchesRaw := re.FindAll([]byte(source), -1)
 
 	matches := make([]string, 0, len(matchesRaw))
