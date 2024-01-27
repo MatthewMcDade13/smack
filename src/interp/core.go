@@ -13,32 +13,47 @@ var smack_atoms = make(map[string]Atom, 32)
 
 func NewCoreEnv() *Env {
 	env := NewEnv(nil, nil, nil)
+
+	// Operators
 	env.Set("+", new_core_fn(eval_add))
 	env.Set("-", new_core_fn(eval_sub))
 	env.Set("*", new_core_fn(eval_mul))
 	env.Set("/", new_core_fn(eval_div))
-	env.Set("println", new_core_fn(eval_println))
-	env.Set("list", new_core_fn(eval_listfn))
-	env.Set("list?", new_core_fn(eval_islist))
-	env.Set("empty?", new_core_fn(eval_isempty))
-	env.Set("len", new_core_fn(eval_list_len))
 	env.Set("=", new_core_fn(eval_isequal))
 	env.Set("<", new_core_fn(eval_lt))
 	env.Set("<=", new_core_fn(eval_lte))
 	env.Set(">", new_core_fn(eval_gt))
 	env.Set(">=", new_core_fn(eval_gte))
 
+	// Stdio
+	env.Set("println", new_core_fn(eval_println))
+
+	// Stdlib
+	env.Set("list", new_core_fn(eval_listfn))
+	env.Set("list?", new_core_fn(eval_islist))
+	env.Set("empty?", new_core_fn(eval_isempty))
+	env.Set("len", new_core_fn(eval_len))
+	env.Set("err?", new_core_fn(eval_iserror))
+	env.Set("map?", new_core_fn(eval_ismap))
+
+	env.Set("mget", new_core_fn(eval_mapget))
+	env.Set("mset!", new_core_fn(eval_mapset_mut))
+
+	// Stdlib :: File IO
+	env.Set("read-str", new_core_fn(eval_read_str))
+	env.Set("slurp", new_core_fn(eval_slurp))
+
+	// Stdlib :: List Operations
 	env.Set("cons", new_core_fn(eval_cons))
 	env.Set("concat", new_core_fn(eval_concat))
 
+	// Stdlib :: Go runtime
 	env.Set("go", new_core_fn(eval_goroutine))
-
 	env.Set("send!", new_core_fn(eval_send))
 	env.Set("recv!", new_core_fn(eval_recv))
 
-	env.Set("err?", new_core_fn(eval_iserror))
-	env.Set("read-str", new_core_fn(eval_read_str))
-	env.Set("slurp", new_core_fn(eval_slurp))
+	// Stdlib :: Macros / Meta
+	// env.Set("quasiquot", new_core_fn(eval_quasiquot))
 
 	{
 		eval := func(vs ...Value) Value {
@@ -53,6 +68,87 @@ func NewCoreEnv() *Env {
 	}
 	return env
 }
+
+func eval_ismap(vs ...Value) Value {
+	if len(vs) < 1 {
+		return NewError(fmt.Errorf("Invalid arity. Expected 1, got 0"))
+	}
+	return NewBool(vs[0].IsHashMap())
+}
+
+func eval_mapget(vs ...Value) Value {
+	if len(vs) < 2 {
+		return NewError(fmt.Errorf("Invalid arity. Expected 2, got: %d", len(vs)))
+	}
+	if m, err := vs[0].TryHashMap(); err == nil {
+		var key string
+		switch vs[1].Type() {
+		case VAL_SYMBOL:
+			key = vs[1].AsSymbol().Name()
+		case VAL_STRING:
+			key = vs[1].AsString()
+		case VAL_ATOM:
+			key = vs[1].AsAtom().Name()
+		default:
+			return NewError(fmt.Errorf("Invalid type for map key. Expected: symbol|atom|string, got: %T", vs[1].val))
+		}
+		if v, ok := m[key]; ok {
+			return v
+		} else {
+			return NewNilList()
+		}
+	} else {
+		return NewError(err)
+	}
+}
+
+func eval_mapset_mut(vs ...Value) Value {
+
+	if len(vs) < 3 {
+		return NewError(fmt.Errorf("Invalid arity. Expected 3, got: %d", len(vs)))
+	}
+	if m, err := vs[0].TryHashMap(); err == nil {
+		var key string
+		switch vs[1].Type() {
+		case VAL_SYMBOL:
+			key = vs[1].AsSymbol().Name()
+		case VAL_STRING:
+			key = vs[1].AsString()
+		case VAL_ATOM:
+			key = vs[1].AsAtom().Name()
+		default:
+			return NewError(fmt.Errorf("Invalid type for map key. Expected: symbol|atom|string, got: %T", vs[1].val))
+		}
+		v := vs[2]
+		m[key] = v
+		return v
+	} else {
+		return NewError(err)
+	}
+}
+
+// func eval_quasiquot(vs ...Value) Value {
+// 	if len(vs) < 1 {
+// 		return NewError(fmt.Errorf("Inavlid number of parameters to quasiquot. Expected 1, got %d", len(vs)))
+// 	}
+//
+// 	v := vs[0]
+// 	if v.IsList() {
+// 		list := v.AsList()
+// 		if list[0].IsSymbol() {
+// 			head := list[0].AsSymbol()
+// 			if head.Name() == "unquot" {
+// 				return list[1]
+// 			}
+// 		} else {
+//
+// 		}
+// 	} else if v.IsHashMap() {
+//
+// 	} else {
+//
+// 	}
+// }
 
 func eval_cons(vs ...Value) Value {
 	if len(vs) < 2 {
@@ -271,17 +367,27 @@ func eval_isequal(vs ...Value) Value {
 	return NewBool(false)
 }
 
-func eval_list_len(vs ...Value) Value {
-	list := vs[0]
-	if !list.IsList() {
+func eval_len(vs ...Value) Value {
+	v := vs[0]
+	switch v.Type() {
+	case VAL_LIST:
+		fallthrough
+	case VAL_ARRAY:
+
+		count := float64(len(v.AsList()))
+		return NewNumber(count)
+	case VAL_HASHMAP:
+		count := float64(len(v.AsHashMap()))
+		return NewNumber(count)
+	default:
+
 		return NewNumber(-1.0)
 	}
-	count := float64(len(list.AsList()))
-	return NewNumber(count)
+
 }
 
 func eval_isempty(vs ...Value) Value {
-	count := eval_list_len(vs...).AsNumber()
+	count := eval_len(vs...).AsNumber()
 
 	return NewBool(count == 0.0)
 }

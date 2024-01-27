@@ -90,6 +90,9 @@ func Eval(ast Value, env *Env) (Value, error) {
 					}
 					sfn := NewFn(list[2], list[1], env, fn)
 					return sfn, nil
+				case "quot":
+					ast = list[1]
+					continue
 				}
 			}
 

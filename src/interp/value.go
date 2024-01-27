@@ -236,6 +236,10 @@ func (v Value) IsArray() bool {
 	return v.Type() == VAL_ARRAY
 }
 
+func (v Value) IsListLike() bool {
+	return v.IsList() || v.IsArray()
+}
+
 func (v Value) IsHashMap() bool {
 	return v.Type() == VAL_HASHMAP
 }
