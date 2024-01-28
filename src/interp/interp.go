@@ -145,7 +145,7 @@ func Eval(ast Value, env *Env) (Value, error) {
 			switch ast.val.(type) {
 			case []Value:
 				inner_list := ast.AsList()
-				inner_map := make(SmackMap)
+				inner_map := make(SmackMap, len(inner_list)/2)
 
 				for i := 1; i < len(inner_list); i = i + 2 {
 

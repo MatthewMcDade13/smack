@@ -63,9 +63,11 @@ func (p *parser) read_atom() (Value, error) {
 	tok := p.peek()
 	switch tok[0] {
 	case '"':
-		return NewString(tok), nil
+		// trim off surrounding double quotes
+		s := string(tok[1 : len(tok)-1])
+		return NewString(s), nil
 	case ':':
-		return NewSymbol(Symbol(tok)), nil
+		return NewAtom(tok), nil
 	default:
 		n, err := strconv.ParseFloat(tok, 32)
 		if err != nil {

@@ -127,6 +127,13 @@ func eval_isequal(vs ...Value) Value {
 		left := left.AsSymbol()
 		right := right.AsSymbol()
 		return NewBool(left.String() == right.String())
+	case VAL_ATOM:
+		if !right.IsAtom() {
+			return NewBool(false)
+		}
+		left := left.AsAtom().String()
+		right := right.AsAtom().String()
+		return NewBool(left == right)
 	case VAL_FN:
 		if !right.IsFn() {
 			return NewBool(false)
@@ -199,6 +206,7 @@ func eval_ast(ast Value, env *Env) (Value, error) {
 
 		}
 		return NewList(result), nil
+
 	default:
 		return ast, nil
 	}

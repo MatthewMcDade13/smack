@@ -14,6 +14,7 @@ const (
 	VAL_ARRAY
 	VAL_HASHMAP
 	VAL_SYMBOL
+	VAL_ATOM
 	VAL_FN
 )
 
@@ -56,13 +57,23 @@ type NilList []Value
 
 type SmackMap map[string]Value
 type Symbol string
+type Atom string
+
+func (s Atom) Name() string {
+	str := strings.Replace(string(s), string(rune(0x269B)), "", 1)
+	return string(str)
+}
+
+func (s Atom) String() string {
+	return string(s)
+}
 
 func (s Symbol) Name() string {
 	return string(s)
 }
 
 func (s Symbol) String() string {
-	return ":" + string(s)
+	return "#" + string(s)
 }
 
 type Value struct {
@@ -108,6 +119,11 @@ func NewHashMap(val SmackMap) Value {
 
 func NewSymbol(val Symbol) Value {
 	return NewValue(VAL_SYMBOL, val)
+}
+
+func NewAtom(name string) Value {
+	atom := fmt.Sprintf("%c%s", rune(0x269B), name)
+	return NewValue(VAL_ATOM, Atom(atom))
 }
 
 func new_core_fn(fn SmackFnPtr) Value {
@@ -157,6 +173,10 @@ func (v Value) AsSymbol() Symbol {
 	return v.val.(Symbol)
 }
 
+func (v Value) AsAtom() Atom {
+	return v.val.(Atom)
+}
+
 func (v Value) AsFn() *SmackFn {
 	return v.val.(*SmackFn)
 }
@@ -203,6 +223,10 @@ func (v Value) IsSome() bool {
 
 func (v Value) IsSymbol() bool {
 	return v.Type() == VAL_SYMBOL
+}
+
+func (v Value) IsAtom() bool {
+	return v.Type() == VAL_ATOM
 }
 
 func (v Value) IsTruthy() bool {
@@ -335,6 +359,8 @@ func (v Value) String() string {
 		return fmt.Sprintf(":%s", v.AsSymbol())
 	case VAL_FN:
 		return v.AsFn().String()
+	case VAL_ATOM:
+		return v.AsAtom().Name()
 	case VAL_NONE:
 		return "NONE"
 	default:
