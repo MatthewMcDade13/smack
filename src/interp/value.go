@@ -281,7 +281,7 @@ func (v Value) String() string {
 	case VAL_HASHMAP:
 		return fmt.Sprintf("%#v", v.AsHashMap())
 	case VAL_SYMBOL:
-		return fmt.Sprintf(":%s", v.AsString())
+		return fmt.Sprintf(":%s", v.AsSymbol())
 	case VAL_FN:
 		return v.AsFn().String()
 	case VAL_NONE:

@@ -20,8 +20,8 @@ func Read(source string) (Value, error) {
 }
 
 func Eval(ast Value, env *Env) (Value, error) {
-	if ast.Type() == VAL_LIST {
-
+	switch ast.Type() {
+	case VAL_LIST:
 		list := ast.AsList()
 		if len(list) == 0 {
 			return ast, nil
@@ -113,7 +113,32 @@ func Eval(ast Value, env *Env) (Value, error) {
 			return NoValue(), err
 		}
 
-	} else {
+	case VAL_HASHMAP:
+		// If the values type is Hashmap, but the underlying type is still a []Value,
+		// this means we have read a hashmap literal that has not yet been evaluated.
+		// so we go ahead and evaluate it here. (Change the inner val pointer from []Value to SmackMap).
+		// Otherwise we just forward the ast value to eval_ast as usual
+		switch ast.val.(type) {
+		case []Value:
+			inner_list := ast.AsList()
+			inner_map := make(SmackMap)
+
+			for i := 1; i < len(inner_list); i = i + 2 {
+
+				name := inner_list[i-1].String()
+				if val, err := Eval(inner_list[i], env); err == nil {
+					inner_map[name] = val
+
+				} else {
+					return NoValue(), err
+				}
+			}
+			ast.val = inner_map
+			return eval_ast(ast, env)
+		default:
+			return eval_ast(ast, env)
+		}
+	default:
 		return eval_ast(ast, env)
 	}
 }

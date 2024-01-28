@@ -43,12 +43,20 @@ func (p *parser) skip(n int) {
 func (p *parser) read_form() (Value, error) {
 	tok := p.peek()
 
-	if tok[0] == '(' {
+	switch tok[0] {
+	case '[':
 		p.skip(1)
-		return p.read_list()
-	} else {
+		return p.read_listas(VAL_ARRAY)
+	case '(':
+		p.skip(1)
+		return p.read_listas(VAL_LIST)
+	case '{':
+		p.skip(1)
+		return p.read_listas(VAL_HASHMAP)
+	default:
 		return p.read_atom()
 	}
+
 }
 
 func (p *parser) read_atom() (Value, error) {
@@ -77,7 +85,27 @@ func (p *parser) read_atom() (Value, error) {
 	}
 }
 
-func (p *parser) read_list() (Value, error) {
+// list_type MUST be VAL_LIST, VAL_ARRAY or VAL_HASHMAP. otherwise
+// NoValue(), error is returned
+func (p *parser) read_listas(list_type uint32) (Value, error) {
+
+	var delim byte
+	switch list_type {
+	case VAL_LIST:
+		delim = ')'
+	case VAL_ARRAY:
+		delim = ']'
+	case VAL_HASHMAP:
+		delim = '}'
+	default:
+		return NoValue(), fmt.Errorf("read_listas => %d not a valid list type to read", list_type)
+	}
+	return p.read_list(delim, list_type)
+}
+
+// list_type MUST be VAL_LIST, VAL_ARRAY or VAL_HASHMAP. otherwise
+// NoValue(), error is returned
+func (p *parser) read_list(delim byte, list_type uint32) (Value, error) {
 	list := make([]Value, 0)
 
 	for {
@@ -88,11 +116,11 @@ func (p *parser) read_list() (Value, error) {
 		// least find a better way of doing check? idk i need to go to bed...
 		if int(p.current) >= len(p.toks) {
 			// End of input
-			return NoValue(), fmt.Errorf("Missing matching end parenthesis ')'")
+			return NoValue(), fmt.Errorf("read_list => Missing matching end parenthesis ')'")
 		}
 
 		tok := p.peek()
-		if tok[0] == ')' {
+		if tok[0] == delim {
 			break
 		}
 
@@ -105,7 +133,9 @@ func (p *parser) read_list() (Value, error) {
 		p.skip(1)
 	}
 
-	return NewList(list), nil
+	// NOTE :: Hashmaps are read as lists (arrays) and then converted to
+	// maps at eval time
+	return NewValue(list_type, list), nil
 }
 
 func tokenize(source string) []string {
