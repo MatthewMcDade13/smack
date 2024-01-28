@@ -7,140 +7,166 @@ import (
 	"strings"
 )
 
-type SmackFunc func(...Value) Value
-type EnvData map[string]SmackFunc
-
-func (f SmackFunc) String() string {
-	return fmt.Sprintf("%#v", f)
-}
-
 func Read(source string) (Value, error) {
 	p := new_parser(source)
 	return p.read_form()
 }
 
 func Eval(ast Value, env *Env) (Value, error) {
-	switch ast.Type() {
-	case VAL_LIST:
-		list := ast.AsList()
-		if len(list) == 0 {
-			return ast, nil
-		}
+	for {
 
-		first := list[0]
-		if first.IsSymbol() {
-			first_sym := first.AsSymbol()
-			switch first_sym.Name() {
-			case "def":
-				name := list[1].AsSymbol().Name()
-				if value, err := Eval(list[2], env); err == nil {
-					env.Set(name, value)
-					return value, nil
-				} else {
-					return NoValue(), err
-				}
+		switch ast.Type() {
+		case VAL_LIST:
+			list := ast.AsList()
+			if len(list) == 0 {
+				return ast, nil
+			}
 
-			case "let":
-				let_env := NewEnv(env, nil, nil)
-				bindings := list[1].AsList()
-				for i := 1; i < len(bindings); i = i + 2 {
-					name := bindings[i-1].AsSymbol().Name()
-					if val, err := Eval(bindings[i], let_env); err == nil {
-						let_env.Set(name, val)
-
+			first := list[0]
+			if first.IsSymbol() {
+				first_sym := first.AsSymbol()
+				switch first_sym.Name() {
+				case "def":
+					name := list[1].AsSymbol().Name()
+					if value, err := Eval(list[2], env); err == nil {
+						env.Set(name, value)
+						return value, nil
 					} else {
 						return NoValue(), err
 					}
 
-				}
-				return Eval(list[2], let_env)
-			case "do":
-				if do_list, err := eval_ast(list[1], env); err == nil {
-					if do_list, err := do_list.TryList(); err == nil {
-						if len(do_list) == 0 {
-							return NoValue(), fmt.Errorf("Unable to eval empty list for 'do' form")
+				case "let":
+					let_env := NewEnv(env, nil, nil)
+					bindings := list[1].AsList()
+					for i := 1; i < len(bindings); i = i + 2 {
+						name := bindings[i-1].AsSymbol().Name()
+						if val, err := Eval(bindings[i], let_env); err == nil {
+
+							let_env.Set(name, val)
+
+						} else {
+							return NoValue(), err
 						}
-						last := do_list[len(do_list)-1]
 
-						return last, nil
+					}
+					env = let_env
+					ast = list[2]
+					continue
+					// return Eval(list[2], let_env)
+				case "do":
+					do_list := list[1].AsList()
+					last := do_list[len(do_list)-1]
+					dos := NewList(do_list[:len(do_list)-1])
+					if _, err := eval_ast(dos, env); err == nil {
+						ast = last
+						continue
 					} else {
 						return NoValue(), err
 					}
+					// if do_list, err := eval_ast(list[1], env); err == nil {
+					// 	if do_list, err := do_list.TryList(); err == nil {
+					// 		if len(do_list) == 0 {
+					// 			return NoValue(), fmt.Errorf("Unable to eval empty list for 'do' form")
+					// 		}
+					// 		last := do_list[len(do_list)-1]
+					//
+					// 		return last, nil
+					// 	} else {
+					// 		return NoValue(), err
+					// 	}
+					//
+					// } else {
+					// 	return NoValue(), err
+					// }
+				case "if":
+					if cond, err := Eval(list[1], env); err == nil {
+						if cond.IsTruthy() {
+							ast = list[2]
+							continue
+							// return Eval(list[2], env)
+						} else if len(list) > 3 /*if we have an else body */ {
+							ast = list[3]
+							continue
+							// return Eval(list[3], env)
+						} else {
+							return NewNilList(), nil
+						}
+					} else {
+						return NoValue(), err
+					}
+				case "fn":
 
-				} else {
-					return NoValue(), err
-				}
-			case "if":
-				if cond, err := Eval(list[1], env); err == nil {
-					if cond.IsTruthy() {
-						return Eval(list[2], env)
-					} else if len(list) > 3 /*if we have an else body */ {
-						return Eval(list[3], env)
-					} else {
-						return NewNilList(), nil
+					fn := func(vs ...Value) Value {
+						binds := list[1].AsList()
+						fn_env := NewEnv(env, binds, vs)
+						if body, err := Eval(list[2], fn_env); err == nil {
+							return body
+						} else {
+							fmt.Printf("WARN => Failed to eval fn body: %s\n", err)
+							return NewNilList()
+						}
 					}
-				} else {
-					return NoValue(), err
+					sfn := NewFn(list[2], list[1], env, fn)
+					return sfn, nil
 				}
-			case "fn":
-				fn := func(vs ...Value) Value {
-					binds := list[1].AsList()
-					fn_env := NewEnv(env, binds, vs)
-					if body, err := Eval(list[2], fn_env); err == nil {
-						return body
-					} else {
-						fmt.Printf("WARN => Failed to eval fn body: %s\n", err)
-						return NewNilList()
-					}
-				}
-				return NewFn(fn), nil
 			}
-		}
 
-		if evaled, err := eval_ast(ast, env); err == nil {
-			list := evaled.AsList()
+			if evaled, err := eval_ast(ast, env); err == nil {
+				list := evaled.AsList()
 
-			switch list[0].Type() {
+				switch list[0].Type() {
 
-			case VAL_FN:
-				fn := list[0].AsFn()
-				return fn(list[1:]...), nil
+				case VAL_FN:
+					f := list[0].AsFn()
+					if f.IsCoreFn() {
+						return f.fn(list[1:]...), nil
+					} else {
+						ast = f.body
+						args := list[1:]
+						new_env := NewEnv(f.env, f.params.AsList(), args)
+						env = new_env
+						continue
+
+					}
+
+				default:
+					return NoValue(), fmt.Errorf("Unable to call symbol %s as function: Unknown symbol or not a function", list[0])
+				}
+
+			} else {
+				return NoValue(), err
+			}
+
+		case VAL_HASHMAP:
+			// If the values type is Hashmap, but the underlying type is still a []Value,
+			// this means we have read a hashmap literal that has not yet been evaluated.
+			// so we go ahead and evaluate it here. (Change the inner val pointer from []Value to SmackMap).
+			// Otherwise we just forward the ast value to eval_ast as usual
+			switch ast.val.(type) {
+			case []Value:
+				inner_list := ast.AsList()
+				inner_map := make(SmackMap)
+
+				for i := 1; i < len(inner_list); i = i + 2 {
+
+					name := inner_list[i-1].String()
+					if val, err := Eval(inner_list[i], env); err == nil {
+						inner_map[name] = val
+
+					} else {
+						return NoValue(), err
+					}
+				}
+				ast.val = inner_map
+				return eval_ast(ast, env)
 			default:
-				return NoValue(), fmt.Errorf("Unable to call symbol %s as function: Unknown symbol or not a function", list[0])
+				return eval_ast(ast, env)
 			}
-
-		} else {
-			return NoValue(), err
-		}
-
-	case VAL_HASHMAP:
-		// If the values type is Hashmap, but the underlying type is still a []Value,
-		// this means we have read a hashmap literal that has not yet been evaluated.
-		// so we go ahead and evaluate it here. (Change the inner val pointer from []Value to SmackMap).
-		// Otherwise we just forward the ast value to eval_ast as usual
-		switch ast.val.(type) {
-		case []Value:
-			inner_list := ast.AsList()
-			inner_map := make(SmackMap)
-
-			for i := 1; i < len(inner_list); i = i + 2 {
-
-				name := inner_list[i-1].String()
-				if val, err := Eval(inner_list[i], env); err == nil {
-					inner_map[name] = val
-
-				} else {
-					return NoValue(), err
-				}
-			}
-			ast.val = inner_map
-			return eval_ast(ast, env)
 		default:
 			return eval_ast(ast, env)
 		}
-	default:
-		return eval_ast(ast, env)
 	}
+
 }
 
 func Print(v Value) string {
