@@ -17,6 +17,38 @@ const (
 	VAL_FN
 )
 
+const (
+	SMACK_FN_CORE = iota
+	SMACK_FN_USER
+)
+
+type SmackFn struct {
+	body   Value
+	params Value
+	env    *Env
+	fn     SmackFnPtr
+	ty     int
+}
+
+func (self *SmackFn) Apply(vs ...Value) Value {
+	return self.fn(vs...)
+}
+
+func (self *SmackFn) IsNil() bool {
+	return self.fn == nil
+}
+
+func (self *SmackFn) IsCoreFn() bool {
+	return self.ty == SMACK_FN_CORE
+}
+
+type SmackFnPtr func(...Value) Value
+type EnvData map[string]SmackFn
+
+func (f SmackFn) String() string {
+	return fmt.Sprintf("%#v", f)
+}
+
 // DONT MUTATE ME!!!!!
 var nil_list = NilList{}
 
@@ -78,8 +110,23 @@ func NewSymbol(val Symbol) Value {
 	return NewValue(VAL_SYMBOL, val)
 }
 
-func NewFn(fn SmackFunc) Value {
-	return NewValue(VAL_FN, fn)
+func new_core_fn(fn SmackFnPtr) Value {
+	sfn := &SmackFn{
+		body:   NewNilList(),
+		params: NewNilList(),
+		env:    nil,
+		fn:     fn,
+		ty:     SMACK_FN_CORE,
+	}
+	return NewValue(VAL_FN, sfn)
+}
+
+func NewFn(body Value, params Value, env *Env, fn SmackFnPtr) Value {
+	ty := SMACK_FN_USER
+	fun := &SmackFn{
+		body, params, env, fn, ty,
+	}
+	return NewValue(VAL_FN, fun)
 }
 
 func NewNilList() Value {
@@ -110,8 +157,8 @@ func (v Value) AsSymbol() Symbol {
 	return v.val.(Symbol)
 }
 
-func (v Value) AsFn() SmackFunc {
-	return v.val.(SmackFunc)
+func (v Value) AsFn() *SmackFn {
+	return v.val.(*SmackFn)
 }
 
 func (v Value) IsNil() bool {
@@ -178,7 +225,7 @@ func (v Value) IsTruthy() bool {
 		return m != nil && len(m) > 0
 	case VAL_FN:
 		f := v.AsFn()
-		return f != nil
+		return !f.IsNil()
 	case VAL_NONE:
 		return false
 	default:
@@ -240,7 +287,7 @@ func (v Value) TrySymbol() (Symbol, error) {
 	}
 }
 
-func (v Value) TryFn() (SmackFunc, error) {
+func (v Value) TryFn() (*SmackFn, error) {
 	if v.Type() == VAL_FN {
 		return v.AsFn(), nil
 	} else {
