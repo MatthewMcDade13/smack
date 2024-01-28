@@ -40,7 +40,7 @@ A lisp dialect, inspired by Clojure, hosted in Go.
 (println (do (
     (let 
         (res (sub a b)) 
-            >= res 50)
+            (>= res 50))
 )))
 
 (def table {:a 12 :b "bee"})
