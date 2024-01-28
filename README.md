@@ -49,3 +49,6 @@ A lisp dialect, inspired by Clojure, hosted in Go.
 (println "Ayyye this really something!!!")
 
 ```
+
+### Sources
+- This repo is my solutions for [Make a Lisp (MAL)](https://github.com/kanaka/mal/tree/master). I have added additional features on top of the challenge set.
