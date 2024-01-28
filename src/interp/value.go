@@ -50,6 +50,8 @@ func (f SmackFn) String() string {
 	return fmt.Sprintf("%#v", f)
 }
 
+const ATOM_PREFIX = rune(0x269B)
+
 // DONT MUTATE ME!!!!!
 var nil_list = NilList{}
 
@@ -60,7 +62,7 @@ type Symbol string
 type Atom string
 
 func (s Atom) Name() string {
-	str := strings.Replace(string(s), string(rune(0x269B)), "", 1)
+	str := strings.Replace(string(s), string(ATOM_PREFIX), "", 1)
 	return string(str)
 }
 
@@ -122,8 +124,15 @@ func NewSymbol(val Symbol) Value {
 }
 
 func NewAtom(name string) Value {
-	atom := fmt.Sprintf("%c%s", rune(0x269B), name)
-	return NewValue(VAL_ATOM, Atom(atom))
+	atom_name := fmt.Sprintf("%c%s", ATOM_PREFIX, name)
+
+	if cached, ok := smack_atoms[atom_name]; ok {
+		return NewValue(VAL_ATOM, cached)
+	} else {
+		atom := Atom(atom_name)
+		smack_atoms[atom_name] = atom
+		return NewValue(VAL_ATOM, atom)
+	}
 }
 
 func new_core_fn(fn SmackFnPtr) Value {

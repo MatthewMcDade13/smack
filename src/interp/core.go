@@ -5,6 +5,9 @@ import (
 	"strings"
 )
 
+// Global interned atoms
+var smack_atoms = make(map[string]Atom, 32)
+
 func NewCoreEnv() *Env {
 	env := NewEnv(nil, nil, nil)
 	env.Set("+", new_core_fn(eval_add))
