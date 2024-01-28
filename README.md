@@ -38,10 +38,9 @@ A lisp dialect, inspired by Clojure, hosted in Go.
 (def b 200)
 
 (println (do (
-    (let 
-        (res (sub a b)) 
-            (>= res 50))
+    (let (res 5) (>= res 50))
 )))
+
 
 (def table {:a 12 :b "bee"})
 
