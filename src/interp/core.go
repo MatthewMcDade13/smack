@@ -1,6 +1,9 @@
 package interp
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 func NewCoreEnv() *Env {
 	env := NewEnv(nil, nil, nil)
@@ -164,9 +167,12 @@ func eval_listfn(vs ...Value) Value {
 
 func eval_println(vs ...Value) Value {
 
+	sb := strings.Builder{}
 	for _, v := range vs {
-		fmt.Println(v)
+		str := fmt.Sprintf("%s ", v)
+		sb.WriteString(str)
 	}
+	fmt.Println(sb.String())
 
 	return NewNilList()
 }

@@ -17,6 +17,11 @@ const (
 	VAL_FN
 )
 
+// DONT MUTATE ME!!!!!
+var nil_list = NilList{}
+
+type NilList []Value
+
 type SmackMap map[string]Value
 type Symbol string
 
@@ -78,8 +83,7 @@ func NewFn(fn SmackFunc) Value {
 }
 
 func NewNilList() Value {
-	empty := make([]Value, 0)
-	return NewList(empty)
+	return NewList(nil_list)
 }
 
 func (v Value) AsNumber() float64 {
