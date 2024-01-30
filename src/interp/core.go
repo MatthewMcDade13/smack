@@ -2,8 +2,11 @@ package interp
 
 import (
 	"fmt"
+	"os"
 	"strings"
 )
+
+// TODO :: Implement Mutable Types => Channel & Ref
 
 // Global interned atoms
 var smack_atoms = make(map[string]Atom, 32)
@@ -24,7 +27,60 @@ func NewCoreEnv() *Env {
 	env.Set("<=", new_core_fn(eval_lte))
 	env.Set(">", new_core_fn(eval_gt))
 	env.Set(">=", new_core_fn(eval_gte))
+
+	env.Set("err?", new_core_fn(eval_iserror))
+	env.Set("read-str", new_core_fn(eval_read_str))
+	env.Set("slurp", new_core_fn(eval_slurp))
+
+	{
+		eval := func(vs ...Value) Value {
+			ast := vs[0]
+			if evaled, err := Eval(ast, env); err == nil {
+				return evaled
+			} else {
+				return NewError(err)
+			}
+		}
+		env.Set("eval", new_core_fn(eval))
+	}
 	return env
+}
+
+func eval_slurp(vs ...Value) Value {
+
+	v := vs[0]
+	if !v.IsString() {
+		e := fmt.Errorf("TYPE_ERROR => Expected String, got: %s", v.TypeString())
+		return NewError(e)
+	}
+	filename := v.AsString()
+
+	if buf, err := os.ReadFile(filename); err == nil {
+		return NewString(string(buf))
+	} else {
+		return NewError(err)
+	}
+
+}
+
+func eval_read_str(vs ...Value) Value {
+
+	v := vs[0]
+	if !v.IsString() {
+		e := fmt.Errorf("TYPE_ERROR => Expected String, got: %s", v.TypeString())
+		return NewError(e)
+	}
+
+	if ast, err := Read(v.AsString()); err == nil {
+		return ast
+	} else {
+		return NewError(err)
+	}
+}
+
+func eval_iserror(vs ...Value) Value {
+	v := vs[0]
+	return NewBool(v.IsError())
 }
 
 func eval_lt(vs ...Value) Value {

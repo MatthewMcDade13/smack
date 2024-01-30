@@ -15,6 +15,7 @@ const (
 	VAL_HASHMAP
 	VAL_SYMBOL
 	VAL_ATOM
+	VAL_ERROR
 	VAL_FN
 )
 
@@ -123,6 +124,10 @@ func NewSymbol(val Symbol) Value {
 	return NewValue(VAL_SYMBOL, val)
 }
 
+func NewError(err error) Value {
+	return NewValue(VAL_ERROR, err)
+}
+
 func NewAtom(name string) Value {
 	atom_name := fmt.Sprintf("%c%s", ATOM_PREFIX, name)
 
@@ -188,6 +193,14 @@ func (v Value) AsAtom() Atom {
 
 func (v Value) AsFn() *SmackFn {
 	return v.val.(*SmackFn)
+}
+
+func (v Value) AsError() error {
+	return v.val.(error)
+}
+
+func (v Value) IsError() bool {
+	return v.Type() == VAL_ERROR && v.val != nil
 }
 
 func (v Value) IsNil() bool {
@@ -259,6 +272,8 @@ func (v Value) IsTruthy() bool {
 	case VAL_FN:
 		f := v.AsFn()
 		return !f.IsNil()
+	case VAL_ERROR:
+		return v.val != nil
 	case VAL_NONE:
 		return false
 	default:
@@ -370,6 +385,8 @@ func (v Value) String() string {
 		return v.AsFn().String()
 	case VAL_ATOM:
 		return v.AsAtom().Name()
+	case VAL_ERROR:
+		return fmt.Sprintf("%s", v.AsError())
 	case VAL_NONE:
 		return "NONE"
 	default:
@@ -395,6 +412,8 @@ func TypeString(ty uint32) string {
 		return "Symbol"
 	case VAL_FN:
 		return "Function"
+	case VAL_ERROR:
+		return "Error"
 	case VAL_NONE:
 		fallthrough
 	default:

@@ -52,9 +52,8 @@ func Eval(ast Value, env *Env) (Value, error) {
 					env = let_env
 					ast = list[2]
 					continue
-					// return Eval(list[2], let_env)
 				case "do":
-					do_list := list[1].AsList()
+					do_list := list[1:]
 					last := do_list[len(do_list)-1]
 					dos := NewList(do_list[:len(do_list)-1])
 					if _, err := eval_ast(dos, env); err == nil {
@@ -63,31 +62,14 @@ func Eval(ast Value, env *Env) (Value, error) {
 					} else {
 						return NoValue(), err
 					}
-					// if do_list, err := eval_ast(list[1], env); err == nil {
-					// 	if do_list, err := do_list.TryList(); err == nil {
-					// 		if len(do_list) == 0 {
-					// 			return NoValue(), fmt.Errorf("Unable to eval empty list for 'do' form")
-					// 		}
-					// 		last := do_list[len(do_list)-1]
-					//
-					// 		return last, nil
-					// 	} else {
-					// 		return NoValue(), err
-					// 	}
-					//
-					// } else {
-					// 	return NoValue(), err
-					// }
 				case "if":
 					if cond, err := Eval(list[1], env); err == nil {
 						if cond.IsTruthy() {
 							ast = list[2]
 							continue
-							// return Eval(list[2], env)
 						} else if len(list) > 3 /*if we have an else body */ {
 							ast = list[3]
 							continue
-							// return Eval(list[3], env)
 						} else {
 							return NewNilList(), nil
 						}
