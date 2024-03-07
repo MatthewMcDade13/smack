@@ -53,7 +53,7 @@ func NewCoreEnv() *Env {
 	env.Set("recv!", new_core_fn(eval_recv))
 
 	// Stdlib :: Macros / Meta
-	// env.Set("quasiquot", new_core_fn(eval_quasiquot))
+	env.Set("quasiquot", new_core_fn(eval_quasiquot))
 
 	{
 		eval := func(vs ...Value) Value {
@@ -67,6 +67,35 @@ func NewCoreEnv() *Env {
 		env.Set("eval", new_core_fn(eval))
 	}
 	return env
+}
+
+func eval_quasiquot(vs ...Value) Value {
+	if len(vs) == 0 {
+		return NewError(fmt.Errorf("Cannot call quasiquot function with no parameters."))
+	}
+
+	ast := vs[0]
+	if ast.IsList() {
+		list := ast.AsList()
+		if len(list) == 0 {
+			return NewError(fmt.Errorf("Cannot call quasiquot function with no parameters."))
+		}
+		head := list[0]
+		if head.IsSymbol() {
+			h := head.AsSymbol().Name()
+			if h == "unquot" {
+				return list[1]
+			}
+		} else {
+			res := make([]Value, 0)
+			for i := len(list) - 1; i >= 0; i-- {
+				elt := list[i]
+				if l, err := elt.TryList(); err == nil {
+
+				}
+			}
+		}
+	}
 }
 
 func eval_ismap(vs ...Value) Value {
